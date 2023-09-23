@@ -34,17 +34,12 @@ final class Subscribe
             ->get();
     }
 
-    public static function getClient($type): Json|SS|SIP002|V2Ray|Trojan|Clash|SIP008|SingBox
+    public static function getClient($type): Clash|SIP008|SingBox
     {
         return match ($type) {
-            'ss' => new SS(),
-            'sip002' => new SIP002(),
-            'v2ray' => new V2Ray(),
-            'trojan' => new Trojan(),
             'clash' => new Clash(),
             'sip008' => new SIP008(),
-            'singbox' => new SingBox(),
-            default => new Json(),
+            default => new SingBox(),
         };
     }
 

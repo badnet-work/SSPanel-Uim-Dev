@@ -196,7 +196,7 @@ final class AuthController extends BaseController
             try {
                 Mail::send(
                     $email,
-                    $_ENV['appName'] . '- 验证邮件',
+                    $_ENV['appName'] . ' - 验证邮件',
                     'verify_code.tpl',
                     [
                         'code' => $code,

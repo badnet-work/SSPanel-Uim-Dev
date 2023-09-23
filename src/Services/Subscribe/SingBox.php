@@ -17,24 +17,25 @@ final class SingBox extends Base
     {
         $nodes = [];
         $singbox_config = $_ENV['SingBox_Config'];
+        $singbox_group_indexes = $_ENV['SingBox_Group_Indexes'];
         $nodes_raw = Subscribe::getSubNodes($user);
 
         foreach ($nodes_raw as $node_raw) {
             $node_custom_config = json_decode($node_raw->custom_config, true);
             //檢查是否配置“前端/订阅中下发的服务器地址”
-            if (! array_key_exists('server_user', $node_custom_config)) {
+            if (!array_key_exists('server_user', $node_custom_config)) {
                 $server = $node_raw->server;
             } else {
                 $server = $node_custom_config['server_user'];
             }
 
-            switch ((int) $node_raw->sort) {
+            switch ((int)$node_raw->sort) {
                 case 0:
                     $node = [
                         'type' => 'shadowsocks',
                         'tag' => $node_raw->name,
                         'server' => $server,
-                        'server_port' => (int) $user->port,
+                        'server_port' => (int)$user->port,
                         'method' => $user->method,
                         'password' => $user->passwd,
                     ];
@@ -57,10 +58,15 @@ final class SingBox extends Base
                         'type' => 'shadowsocks',
                         'tag' => $node_raw->name,
                         'server' => $server,
-                        'server_port' => (int) $ss_2022_port,
+                        'server_port' => (int)$ss_2022_port,
                         'method' => $method,
-                        'password' => $server_key === '' ? $user_pk : $server_key . ':' .$user_pk,
+                        'password' => $server_key === '' ? $user_pk : $server_key . ':' . $user_pk,
                     ];
+
+                    $multiplex = $node_custom_config['multiplex'];
+                    if ($multiplex != null) {
+                        $node['multiplex'] = $multiplex;
+                    }
 
                     break;
                 case 2:
@@ -74,7 +80,7 @@ final class SingBox extends Base
                         'type' => 'tuic',
                         'tag' => $node_raw->name,
                         'server' => $server,
-                        'server_port' => (int) $tuic_port,
+                        'server_port' => (int)$tuic_port,
                         'uuid' => $user->uuid,
                         'password' => $user->passwd,
                         'congestion_control' => $congestion_control,
@@ -82,7 +88,7 @@ final class SingBox extends Base
                         'tls' => [
                             'enabled' => true,
                             'server_name' => $host,
-                            'insecure' => (bool) $allow_insecure,
+                            'insecure' => (bool)$allow_insecure,
                         ],
                     ];
 
@@ -106,10 +112,10 @@ final class SingBox extends Base
                         'type' => 'vmess',
                         'tag' => $node_raw->name,
                         'server' => $server,
-                        'server_port' => (int) $v2_port,
+                        'server_port' => (int)$v2_port,
                         'uuid' => $user->uuid,
                         'security' => $security,
-                        'alter_id' => (int) $alter_id,
+                        'alter_id' => (int)$alter_id,
                         'transport' => [
                             'type' => $transport,
                             'host' => $host,
@@ -120,6 +126,11 @@ final class SingBox extends Base
                     ];
 
                     $node['transport'] = array_filter($node['transport']);
+
+                    $multiplex = $node_custom_config['multiplex'];
+                    if ($multiplex != null) {
+                        $node['multiplex'] = $multiplex;
+                    }
 
                     break;
                 case 14:
@@ -133,17 +144,20 @@ final class SingBox extends Base
                     $path = $node_custom_config['header']['request']['path'][0] ?? $node_custom_config['path'] ?? '';
                     $headers = $node_custom_config['header']['request']['headers'] ?? [];
                     $service_name = $node_custom_config['servicename'] ?? '';
-
                     $node = [
                         'type' => 'trojan',
                         'tag' => $node_raw->name,
                         'server' => $server,
-                        'server_port' => (int) $trojan_port,
+                        'server_port' => (int)$trojan_port,
                         'password' => $user->uuid,
                         'tls' => [
                             'enabled' => true,
                             'server_name' => $host,
-                            'insecure' => (bool) $allow_insecure,
+                            'insecure' => (bool)$allow_insecure,
+                            'utls' => [
+                                'enabled' => true,
+                                'fingerprint' => 'firefox',
+                            ],
                         ],
                         'transport' => [
                             'type' => $transport,
@@ -152,6 +166,11 @@ final class SingBox extends Base
                             'service_name' => $service_name,
                         ],
                     ];
+
+                    $multiplex = $node_custom_config['multiplex'];
+                    if ($multiplex != null) {
+                        $node['multiplex'] = $multiplex;
+                    }
 
                     $node['tls'] = array_filter($node['tls']);
                     $node['transport'] = array_filter($node['transport']);
@@ -167,12 +186,21 @@ final class SingBox extends Base
             }
 
             $nodes[] = $node;
-            $singbox_config['outbounds'][0]['outbounds'][] = $node_raw->name;
+            foreach ($singbox_group_indexes as $index) {
+                $singbox_config['outbounds'][$index]['outbounds'][] = $node_raw->name;
+            }
+        }
+
+        $singbox_config['outbounds'][0]['tag'] = $_ENV['appName'];
+        foreach ($singbox_config['route']['rules'] as $index => $rule) {
+            if ($rule['outbound'] == 'default') {
+                $singbox_config['route']['rules'][$index]['outbound'] = $_ENV['appName'];
+            }
         }
 
         $singbox_config['outbounds'] = array_merge($singbox_config['outbounds'], $nodes);
         $singbox_config['experimental']['clash_api']['cache_id'] = $_ENV['appName'];
 
-        return json_encode($singbox_config);
+        return json_encode($singbox_config, JSON_PRETTY_PRINT);
     }
 }

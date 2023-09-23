@@ -198,6 +198,7 @@ final class Clash extends Base
                 $clash_group_config['proxy-groups'][$index]['proxies'][] = $node_raw->name;
             }
         }
+        $clash_group_config['proxy-groups'][0]['name'] = $_ENV['appName'];
 
         $clash_nodes = [
             'proxies' => $nodes,
